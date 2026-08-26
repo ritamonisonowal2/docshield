@@ -1,0 +1,10 @@
+{
+  "name": "AI Document & Fake ID Screening System",
+  "description": "Enterprise-grade AI document verification, forensic tampering detection, biometric face matching, syndicate fraud graph analysis, and explainable risk scoring system for border security and identity screening officers.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
