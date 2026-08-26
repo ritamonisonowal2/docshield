@@ -44,7 +44,9 @@ export const InputCaptureSection: React.FC<InputCaptureSectionProps> = ({
   const [supportingDoc, setSupportingDoc] = useState<string | null>(null);
   const [isDualUpload, setIsDualUpload] = useState<boolean>(false);
   const [cameraActive, setCameraActive] = useState<boolean>(false);
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isStartingCamera, setIsStartingCamera] = useState<boolean>(false);
   const [isManuallyExpanded, setIsManuallyExpanded] = useState<boolean>(false);
 
   const hasCurrentCase = Boolean(docImage);
@@ -55,31 +57,78 @@ export const InputCaptureSection: React.FC<InputCaptureSectionProps> = ({
   const fileInputLiveRef = useRef<HTMLInputElement>(null);
   const fileInputSupportRef = useRef<HTMLInputElement>(null);
 
+  // Attach stream to video element whenever cameraActive or mediaStream changes
+  useEffect(() => {
+    if (cameraActive && mediaStream && videoRef.current) {
+      videoRef.current.srcObject = mediaStream;
+      videoRef.current.play().catch((err) => {
+        console.warn('Auto-play error on video stream:', err);
+      });
+    }
+  }, [cameraActive, mediaStream]);
+
   const startCamera = async () => {
     setCameraError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-        setCameraActive(true);
-      }
-    } catch (err: any) {
-      console.error('Webcam access error:', err);
-      setCameraError('Unable to access webcam. Please check permissions.');
-      setCameraActive(false);
+    setIsStartingCamera(true);
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setCameraError('Webcam API is not supported in this environment. Please upload a selfie image.');
+      setIsStartingCamera(false);
+      return;
     }
+
+    // Try a series of progressively relaxed media stream constraints to ensure camera start
+    const constraintTries: MediaStreamConstraints[] = [
+      { video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' } },
+      { video: { facingMode: 'user' } },
+      { video: true },
+    ];
+
+    let stream: MediaStream | null = null;
+    let lastError: any = null;
+
+    for (const constraints of constraintTries) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (stream) break;
+      } catch (err: any) {
+        lastError = err;
+      }
+    }
+
+    setIsStartingCamera(false);
+
+    if (stream) {
+      setMediaStream(stream);
+      setCameraActive(true);
+      return;
+    }
+
+    // If camera access failed (e.g. iframe restrictions, permission dismissed, no webcam connected)
+    console.warn('Webcam stream initialization failed:', lastError);
+    let errorMsg = 'Webcam unavailable or permission dismissed.';
+    if (lastError?.name === 'NotAllowedError' || lastError?.name === 'PermissionDeniedError') {
+      errorMsg = 'Camera permission denied or dismissed in browser.';
+    } else if (lastError?.name === 'NotReadableError' || lastError?.name === 'TrackStartError' || lastError?.message?.includes('video source')) {
+      errorMsg = 'Camera is busy or in use by another app.';
+    } else if (lastError?.name === 'NotFoundError' || lastError?.name === 'DevicesNotFoundError') {
+      errorMsg = 'No webcam hardware detected on this device.';
+    }
+    setCameraError(errorMsg);
+    setCameraActive(false);
   };
 
   const stopCamera = () => {
+    if (mediaStream) {
+      mediaStream.getTracks().forEach((track) => track.stop());
+      setMediaStream(null);
+    }
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach((track) => track.stop());
       videoRef.current.srcObject = null;
-      setCameraActive(false);
     }
+    setCameraActive(false);
   };
 
   useEffect(() => {
@@ -496,30 +545,31 @@ export const InputCaptureSection: React.FC<InputCaptureSectionProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className={`border-2 border-dashed rounded-2xl p-5 h-52 flex flex-col items-center justify-center text-center ${
+                  <div className={`border-2 border-dashed rounded-2xl p-4 h-52 flex flex-col items-center justify-center text-center ${
                     isLight ? 'border-slate-300 bg-white' : 'border-slate-750 bg-[#080b14]'
                   }`}>
                     {cameraError ? (
-                      <div className="text-xs text-rose-400 mb-2 flex items-center gap-1">
-                        <AlertCircle className="w-4 h-4" />
+                      <div className="text-xs text-rose-400 mb-2 flex items-center gap-1 max-w-[280px] leading-tight">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
                         <span>{cameraError}</span>
                       </div>
                     ) : (
-                      <Camera className="w-8 h-8 text-slate-400 mb-2" />
+                      <Camera className="w-8 h-8 text-slate-400 mb-1.5" />
                     )}
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 mb-2">
                       <button
                         type="button"
                         onClick={startCamera}
-                        className="bg-accent-600 hover:bg-accent-500 text-white text-xs px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-sm cursor-pointer"
+                        disabled={isStartingCamera}
+                        className="bg-accent-600 hover:bg-accent-500 text-white text-xs px-3.5 py-1.5 rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
                       >
-                        <Camera className="w-4 h-4" />
-                        <span>Start Camera</span>
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>{isStartingCamera ? 'Connecting...' : 'Start Camera'}</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => fileInputLiveRef.current?.click()}
-                        className={`text-xs px-4 py-2 rounded-xl font-bold border cursor-pointer ${
+                        className={`text-xs px-3.5 py-1.5 rounded-xl font-bold border cursor-pointer ${
                           isLight
                             ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
                             : 'bg-slate-850 hover:bg-slate-800 text-slate-200 border-slate-750'
@@ -528,9 +578,28 @@ export const InputCaptureSection: React.FC<InputCaptureSectionProps> = ({
                         Upload Selfie
                       </button>
                     </div>
-                    <p className={`text-xs mt-2 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                      Facial landmark matching & passive liveness
-                    </p>
+                    {/* Quick Sample Live Selfie Buttons */}
+                    <div className="flex items-center gap-1.5 text-[11px] font-mono mt-1">
+                      <span className="text-slate-400 text-[10px]">Test Selfie:</span>
+                      <button
+                        type="button"
+                        onClick={() => setLiveImage(PLACEHOLDER_AVATARS.maleLive)}
+                        className={`px-2 py-0.5 rounded border font-semibold cursor-pointer ${
+                          isLight ? 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200' : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
+                        }`}
+                      >
+                        Male
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLiveImage(PLACEHOLDER_AVATARS.femaleLive)}
+                        className={`px-2 py-0.5 rounded border font-semibold cursor-pointer ${
+                          isLight ? 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200' : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
+                        }`}
+                      >
+                        Female
+                      </button>
+                    </div>
                   </div>
                 )}
                 <input

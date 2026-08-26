@@ -24,7 +24,7 @@ import { PLACEHOLDER_AVATARS } from './utils/humanPlaceholder';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'home' | 'screening' | 'syndicate' | 'rules' | 'audit'>('home');
-  const [currentCase, setCurrentCase] = useState<ScreeningCase | null>(null);
+  const [currentCase, setCurrentCase] = useState<ScreeningCase | null>(PRESET_SCENARIOS[0]);
   const [isCustomUpload, setIsCustomUpload] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [officerId] = useState<string>('OFFICER-7492');
@@ -281,7 +281,21 @@ export default function App() {
 
         {activeTab === 'syndicate' && (
           <div className="animate-in fade-in duration-200">
-            <SyndicateGraphVisualizer graphData={currentCase?.syndicateGraph || { fraudRingDetected: false, syndicateName: 'No Active Syndicate', duplicateCount: 0, nodes: [], edges: [] }} applicantName={currentCase?.extractedData?.fullName || 'Subject'} theme={theme} />
+            <SyndicateGraphVisualizer
+              graphData={
+                currentCase?.syndicateGraph || {
+                  fraudRingDetected: false,
+                  syndicateName: 'No Active Syndicate',
+                  duplicateCount: 0,
+                  nodes: [],
+                  links: [],
+                  bfsTraversalPaths: [],
+                  explanation: 'No syndicate data available for current case.',
+                }
+              }
+              applicantName={currentCase?.extractedData?.fullName || 'Subject'}
+              theme={theme}
+            />
           </div>
         )}
 

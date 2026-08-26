@@ -13,7 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5000;
+const PORT = 3000;
 
 // Body parser with 50mb limit for high-resolution document images
 app.use(express.json({ limit: '50mb' }));

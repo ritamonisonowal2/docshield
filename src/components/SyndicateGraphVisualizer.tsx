@@ -28,8 +28,15 @@ export const SyndicateGraphVisualizer: React.FC<SyndicateGraphVisualizerProps> =
   theme = 'dark',
 }) => {
   const isLight = theme === 'light';
-  const hasData = graphData && graphData.nodes && graphData.nodes.length > 0;
-  const activeGraph = graphData;
+  const nodes = graphData?.nodes || [];
+  const links = graphData?.links || [];
+  const hasData = nodes.length > 0;
+  const activeGraph = {
+    ...graphData,
+    nodes,
+    links,
+    bfsTraversalPaths: graphData?.bfsTraversalPaths || [],
+  };
 
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [isBfsTraversing, setIsBfsTraversing] = useState<boolean>(false);
@@ -43,12 +50,12 @@ export const SyndicateGraphVisualizer: React.FC<SyndicateGraphVisualizerProps> =
     let step = 0;
     const interval = setInterval(() => {
       step++;
-      if (step >= activeGraph.nodes.length) {
+      if (step >= nodes.length) {
         clearInterval(interval);
         setIsBfsTraversing(false);
       } else {
         setActiveStep(step);
-        setSelectedNode(activeGraph.nodes[step]);
+        setSelectedNode(nodes[step]);
       }
     }, 600);
   };
