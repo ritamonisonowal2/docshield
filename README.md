@@ -1,4 +1,4 @@
-# DocShield AI — Autonomous Document Forensics & Biometric Fraud Defense
+# DocShield AI — Autonomous Document Forensics & Biometric Fraud Defense (SIH-26188) | Team-Eclipse
 
 DocShield AI is an enterprise-grade forensic document intelligence platform designed to eliminate identity theft, synthetic identity fraud, document tampering, and organized identity syndicates during digital customer onboarding (e-KYC).
 
